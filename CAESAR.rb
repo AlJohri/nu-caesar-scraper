@@ -147,8 +147,6 @@ class CAESAR
 		@page = @agent.get('https://ses.ent.northwestern.edu/psc/caesar_7/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.SSS_MY_CRSEHIST.GBL?Page=SSS_MY_CRSEHIST&Action=U&ForceSearch=Y&TargetFrameName=None')
 		doc = @page.parser
 
-    debugger
-
 		numCourses = doc.xpath("//table[@id='CRSE_HIST$scroll$0']/tr").size - 2
 
 		courses = Array.new
