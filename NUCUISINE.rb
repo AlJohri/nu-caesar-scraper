@@ -44,14 +44,14 @@ if __FILE__ == $0
 	beginning = Time.now
 
 	if (ARGV.length == 0)
-		print "What is your netID?: ";
+		print "What is your netID?: "
 		username = gets.chop
 	else
 		username = ARGV[0]; 
 	end
 
 	if (ARGV.length <= 1); 
-		print "What is your password?: ";
+		print "What is your password?: "
 		password = STDIN.noecho(&:gets).chop; 
 		puts ""
 	else
@@ -59,9 +59,11 @@ if __FILE__ == $0
 
 	nucuisine = NUCUISINE.new(username, password)
 	nucuisine.connect()
+	puts "Connection Took #{Time.now - beginning} seconds."
 	puts nucuisine.balance_check()
+	puts "Balance Check Took #{Time.now - beginning} seconds."
 
-	puts "Time elapsed: #{Time.now - beginning} seconds."
+	puts "Total time elapsed: #{Time.now - beginning} seconds."
 
 end
 

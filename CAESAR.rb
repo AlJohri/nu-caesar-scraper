@@ -34,47 +34,44 @@ class CAESAR
 
 		courses = Array.new
 
-		i = 0
-		doc.xpath("//table[@id='ACE_STDNT_ENRL_SSV2$0']/tr/td[@valign='top']/div/table/tr/td[@class='PAGROUPDIVIDER']").each{ |x|
-			i += 1
+		i = 0; k = 0
+		doc.xpath("//table[@id='ACE_STDNT_ENRL_SSV2$0']/tr/td[@valign='top']/div/table/tr/td[@class='PAGROUPDIVIDER']").each { |x|
 
-			# Course, ID, Section, Location, Professor, and Type
-		  course = x.text
-		  id = doc.xpath("//span[@id='DERIVED_CLS_DTL_CLASS_NBR$" + i.to_s + "']").text
-		  section = doc.xpath("//a[@id='MTG_SECTION$" + i.to_s + "']").text
-		  location = doc.xpath("//span[@id='MTG_LOC$" + i.to_s + "']").text
-		  professor = doc.xpath("//span[@id='DERIVED_CLS_DTL_SSR_INSTR_LONG$" + i.to_s + "']").text
-		  type = doc.xpath("//span[@id='MTG_COMP$" + i.to_s + "']").text
-		  
-		  # Date/Time
-		 	doc.xpath("//span[@id='MTG_SCHED$" + i.to_s + "']").text.gsub(/\n|\r/, "") =~ /^(\w+) (\d\d?:\d\d(AM|PM)) - (\d\d?:\d\d(AM|PM))/
-		 	days = $1
-		 	start_time = $2
-		 	end_time = $4
+			parts = doc.xpath("//table[@id='CLASS_MTG_VW$scroll$" + i.to_s + "']/tr").size-1
+			x.text =~ /(^\w+ \d+)(-\d+ - )(.+)/
+			title = $1
+			caption = $3
 
-		 	# Convert abbreviations for days to full form for Google Calendar Quick Add
-		 	days =~ /(Mo|Tu|We|Th|Fr)(Mo|Tu|We|Th|Fr)?(Mo|Tu|We|Th|Fr)?(Mo|Tu|We|Th|Fr)?(Mo|Tu|We|Th|Fr)?/
-		 	days = [$1, $2, $3, $4, $5]
-		 	days.delete(nil)
-		 	days.map! {|x| 
-		 		if (x == "Mo"); x = "Monday"
-		 		elsif (x == "Tu"); x = "Tuesday"
-		 		elsif (x == "We"); x = "Wednesday"
-				elsif (x == "Th"); x = "Thursday" 
-				elsif (x == "Fr"); x = "Friday"
-				end
-		 	}
-		 	if (days.size > 1); days[-1] = "and #{days.last}"; end
-		 	days = days.size > 2 ? days.join(", ") : days.join(" ")
+			parts.times { |j|
+				# Course, ID, Section, Location, Professor, and Type
+			  id = doc.xpath("//span[@id='DERIVED_CLS_DTL_CLASS_NBR$" + k.to_s + "']").text
+			  section = doc.xpath("//a[@id='MTG_SECTION$" + k.to_s + "']").text
+			  location = doc.xpath("//span[@id='MTG_LOC$" + k.to_s + "']").text
+			  professor = doc.xpath("//span[@id='DERIVED_CLS_DTL_SSR_INSTR_LONG$" + k.to_s + "']").text
+			  type = doc.xpath("//span[@id='MTG_COMP$" + k.to_s + "']").text
+			  
+			  # Date/Time
+			 	doc.xpath("//span[@id='MTG_SCHED$" + k.to_s + "']").text.gsub(/\n|\r/, "") =~ /^(\w+) (\d\d?:\d\d(AM|PM)) - (\d\d?:\d\d(AM|PM))/
+			 	days = $1
+			 	start_time = $2
+			 	end_time = $4
 
-		  course = "#{course} (#{id}) #{days} #{start_time} - #{end_time} Weekly until 3/16 at #{location}"
-		  courses.push course
+			 	# Convert abbreviations for days to full form for Google Calendar Quick Add		 	
+			 	days = convert_days(days)
+
+			  course = "#{title}-#{section} #{caption} (#{id}) #{days} #{start_time} - #{end_time} Weekly until 3/16 at #{location}"
+			  courses.push course
+			  
+			  k += 1 # Actual Course (e.g. Chem XXX Lecture or Chem XXX Lab)
+			}
+
+			i += 1 # Course Category (e.g. Chem XXX)
 
 		  #GoogleCL Stuff
 		  #command = "google calendar add \"#{course}\" --cal \"Course Schedule\""
 		  #system command
 		}
-
+		
 		return courses
 
 	end
@@ -90,7 +87,7 @@ class CAESAR
 		numCourses.times { |i|
 			# Course, ID
 			doc.xpath("//div[@id='win5divP_CLASS_NAME$" + i.to_s + "']").text.gsub(/\n|\r/, "") =~ /(^\w+ \d+-\d+-\d+) \((\d+)\)/
-			course = $1
+			title = $1
 		 	id = $2
 
 		 	# Professor, Location
@@ -104,21 +101,9 @@ class CAESAR
 		 	end_time = $4
 
 		 	# Convert abbreviations for days to full form for Google Calendar Quick Add		 	
-		 	days =~ /(Mo|Tu|We|Th|Fr)(Mo|Tu|We|Th|Fr)?(Mo|Tu|We|Th|Fr)?(Mo|Tu|We|Th|Fr)?(Mo|Tu|We|Th|Fr)?/
-		 	days = [$1, $2, $3, $4, $5]
-		 	days.delete(nil)
-		 	days.map! {|x| 
-		 		if (x == "Mo"); x = "Monday";
-		 		elsif (x == "Tu"); x = "Tuesday";
-		 		elsif (x == "We"); x = "Wednesday"; 
-				elsif (x == "Th"); x = "Thursday"; 
-				elsif (x == "Fr"); x = "Friday";
-				end
-		 	}
-		 	if (days.size > 1); days[-1] = "and #{days.last}"; end
-		 	days = days.size > 2 ? days.join(", ") : days.join(" ")
+		 	days = convert_days(days)
 
-		  course = "#{course} (#{id}) #{days} #{start_time} - #{end_time} Weekly until 3/16 at #{location}"
+		  course = "#{title} (#{id}) #{days} #{start_time} - #{end_time} Weekly until 3/16 at #{location}"
 		 	courses.push course
 
 		  #GoogleCL Stuff
@@ -130,13 +115,28 @@ class CAESAR
 
 	end
 
+	def convert_days(days)
+	 	days =~ /(Mo|Tu|We|Th|Fr)(Mo|Tu|We|Th|Fr)?(Mo|Tu|We|Th|Fr)?(Mo|Tu|We|Th|Fr)?(Mo|Tu|We|Th|Fr)?/
+	 	days = [$1, $2, $3, $4, $5]
+	 	days.delete(nil)
+	 	days.map! {|x| 
+	 		if (x == "Mo"); x = "Monday";
+	 		elsif (x == "Tu"); x = "Tuesday";
+	 		elsif (x == "We"); x = "Wednesday"; 
+			elsif (x == "Th"); x = "Thursday"; 
+			elsif (x == "Fr"); x = "Friday";
+			end
+	 	}
+	 	if (days.size > 1); days[-1] = "and #{days.last}"; end
+	 	days = days.size > 2 ? days.join(", ") : days.join(" ")
+	 	return days
+	end
+
 end
 
 ################################################################################################################
 
 if __FILE__ == $0
-
-	beginning = Time.now
 
 	if (ARGV.length == 0)
 		print "What is your netID?: ";
@@ -152,12 +152,28 @@ if __FILE__ == $0
 	else
 		password = ARGV[1]; end
 
+	beginning = Time.now
 	caesar = CAESAR.new(username, password)
-	caesar.connect()
-	puts caesar.course_list()
-	puts caesar.shopping_cart()
 
-	puts "Time elapsed: #{Time.now - beginning} seconds."
+	caesar.connect()
+	connection_time = Time.now - beginning
+	
+	puts "\nConnection Took #{connection_time} seconds.\n\n"
+	
+	
+	puts caesar.course_list()
+	course_list_time = (Time.now - beginning) - connection_time
+
+	puts "Course List Took #{course_list_time} seconds.\n\n"
+	
+	
+	puts caesar.shopping_cart()
+	shopping_cart_time = (Time.now - beginning) - (course_list_time + connection_time)
+	
+	puts "Shopping Cart Took #{shopping_cart_time} seconds.\n\n"
+	
+
+	puts "Total time elapsed: #{Time.now - beginning} seconds."
 
 end
 
