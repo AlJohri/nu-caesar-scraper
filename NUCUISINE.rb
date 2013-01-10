@@ -15,9 +15,6 @@ class NUCUISINE
 	end	
 
 	def connect()
-		#@agent.agent.http.ca_file = 'cacert.pem'
-		#@agent.agent.ssl_version = "SSLv3"		
-		##{@username}:#{@password}
 		@agent.add_auth("https://go.dosa.northwestern.edu/uhfs/foodservice/balancecheck", @username, @password)
 		@page = @agent.get("https://go.dosa.northwestern.edu/uhfs/foodservice/balancecheck")
 	end

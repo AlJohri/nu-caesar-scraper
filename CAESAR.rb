@@ -3,6 +3,7 @@
 require 'mechanize'
 require 'net/https'
 require 'io/console'
+require 'json'
 
 ################################################################################################################################
 
@@ -18,7 +19,10 @@ class CAESAR
 		#@agent.agent.http.ca_file = '/usr/local/Cellar/openssl/1.0.1c/cacert.pem'
 		@agent.agent.http.ca_file = 'cacert.pem'
 		@agent.agent.ssl_version = "SSLv3"
-		@page = @agent.get('https://ses.ent.northwestern.edu/psp/s9prod/?cmd=login')
+		@page = @agent.get('https://ses.ent.northwestern.edu/psp/s9prod/?cmd=login')		
+	end
+
+	def authenticate()
 		login_form = @page.form('login')
 		login_form.set_fields(:userid => @username) #ARGV[0]
 		login_form.set_fields(:pwd => @password) #ARGV[1]
@@ -39,7 +43,7 @@ class CAESAR
 
 			parts = doc.xpath("//table[@id='CLASS_MTG_VW$scroll$" + i.to_s + "']/tr").size-1
 			x.text =~ /(^\w+ \d+)(-\d+ - )(.+)/
-			title = $1
+			name = $1
 			caption = $3
 
 			parts.times { |j|
@@ -56,20 +60,31 @@ class CAESAR
 			 	start_time = $2
 			 	end_time = $4
 
+			 	days_orig = days
+
 			 	# Convert abbreviations for days to full form for Google Calendar Quick Add		 	
 			 	days = convert_days(days)
 
-			  course = "#{title}-#{section} #{caption} (#{id}) #{days} #{start_time} - #{end_time} Weekly until 3/16 at #{location}"
-			  courses.push course
-			  
+			  course = Hash.new
+			  course['name'] = "#{name}-#{section}"
+			  course['title'] = caption
+			  course['id'] = id
+			  course['days'] = days_orig
+			  course['start_time'] = start_time
+			  course['end_time'] = end_time
+			  course['location'] = location
+
+			  courses.push JSON.generate(course)
+
+			  #GoogleCL
+			  #event = "#{name}-#{section} #{caption} (#{id}) #{days} #{start_time} - #{end_time} Weekly until 3/16 at #{location}"
+			  #command = "google calendar add \"#{event}\" --cal \"Course Schedule\""
+				  
 			  k += 1 # Actual Course (e.g. Chem XXX Lecture or Chem XXX Lab)
 			}
 
 			i += 1 # Course Category (e.g. Chem XXX)
 
-		  #GoogleCL Stuff
-		  #command = "google calendar add \"#{course}\" --cal \"Course Schedule\""
-		  #system command
 		}
 		
 		return courses
@@ -87,7 +102,7 @@ class CAESAR
 		numCourses.times { |i|
 			# Course, ID
 			doc.xpath("//div[@id='win5divP_CLASS_NAME$" + i.to_s + "']").text.gsub(/\n|\r/, "") =~ /(^\w+ \d+-\d+-\d+) \((\d+)\)/
-			title = $1
+			name = $1
 		 	id = $2
 
 		 	# Professor, Location
@@ -100,19 +115,58 @@ class CAESAR
 		 	start_time = $2
 		 	end_time = $4
 
+		 	days_orig = days
+
 		 	# Convert abbreviations for days to full form for Google Calendar Quick Add		 	
 		 	days = convert_days(days)
 
-		  course = "#{title} (#{id}) #{days} #{start_time} - #{end_time} Weekly until 3/16 at #{location}"
-		 	courses.push course
+		  course = Hash.new
+		  course['name'] = name
+		  course['title'] = ""
+		  course['id'] = id
+		  course['days'] = days_orig
+		  course['start_time'] = start_time
+		  course['end_time'] = end_time
+		  course['location'] = location
 
-		  #GoogleCL Stuff
-		  #command = "google calendar add \"#{course}\" --cal \"Shopping Cart\""
-		 	#system command
+		  courses.push JSON.generate(course)
+
+		  #GoogleCL
+		  #event = "#{name} (#{id}) #{days} #{start_time} - #{end_time} Weekly until 3/16 at #{location}"
+		  #command = "google calendar add \"#{event}\" --cal \"Shopping Cart\""
 		}
 
 		return courses
 
+	end
+
+	def course_history()
+		@page = @agent.get('https://ses.ent.northwestern.edu/psc/caesar_7/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.SSS_MY_CRSEHIST.GBL?Page=SSS_MY_CRSEHIST&Action=U&ForceSearch=Y&EMPLID=2678688&TargetFrameName=None')
+		doc = @page.parser
+
+		numCourses = doc.xpath("//table[@id='CRSE_HIST$scroll$0']/tr").size - 2
+
+		courses = Array.new
+
+		numCourses.times { |i|
+			name = doc.xpath("//span[@id='CRSE_NAME$" + i.to_s + "']").text
+			title = doc.xpath("//a[@id='CRSE_LINK$" + i.to_s + "']").text
+			term = doc.xpath("//span[@id='CRSE_TERM$" + i.to_s + "']").text
+			grade = doc.xpath("//span[@id='CRSE_GRADE$" + i.to_s + "']").text
+			units = doc.xpath("//span[@id='CRSE_UNITS$" + i.to_s + "']").text
+			#status #win5divCRSE_STATUS$0
+			
+			course = Hash.new
+			course['name'] = name
+			course['title'] = title
+			course['term'] = term
+			course['grade'] = grade
+			course['units'] = units
+
+			courses.push JSON.generate(course)
+		}
+
+		return courses
 	end
 
 	def convert_days(days)
@@ -154,24 +208,27 @@ if __FILE__ == $0
 
 	beginning = Time.now
 	caesar = CAESAR.new(username, password)
+	puts ""
 
 	caesar.connect()
 	connection_time = Time.now - beginning
+	puts "Connection Took #{connection_time} seconds.\n"
 	
-	puts "\nConnection Took #{connection_time} seconds.\n\n"
-	
-	
-	puts caesar.course_list()
-	course_list_time = (Time.now - beginning) - connection_time
+	caesar.authenticate()
+	authenticate_time = (Time.now - beginning) - connection_time
+	puts "Authentication Took #{authenticate_time} seconds.\n\n"
 
+	puts caesar.course_list()
+	course_list_time = (Time.now - beginning) - (connection_time + authenticate_time)
 	puts "Course List Took #{course_list_time} seconds.\n\n"
 	
-	
 	puts caesar.shopping_cart()
-	shopping_cart_time = (Time.now - beginning) - (course_list_time + connection_time)
-	
+	shopping_cart_time = (Time.now - beginning) - (connection_time + authenticate_time + course_list_time)
 	puts "Shopping Cart Took #{shopping_cart_time} seconds.\n\n"
 	
+	puts caesar.course_history()
+	course_history_time = (Time.now - beginning) - (connection_time + authenticate_time + course_list_time + shopping_cart_time)
+	puts "Course History Took #{shopping_cart_time} seconds.\n\n"
 
 	puts "Total time elapsed: #{Time.now - beginning} seconds."
 
