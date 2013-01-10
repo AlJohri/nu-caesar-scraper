@@ -49,7 +49,8 @@ if __FILE__ == $0
 
 	if (ARGV.length <= 1); 
 		print "What is your password?: "
-		password = STDIN.noecho(&:gets).chop; 
+		password = STDIN.noecho(&:gets).chop;
+    password = gets
 		puts ""
 	else
 		password = ARGV[1]; end
