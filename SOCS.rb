@@ -1,21 +1,15 @@
 #!/usr/bin/env ruby
 
-#encoding: ascii-8bit
-
 require 'rubygems'
 require 'mechanize'
 require 'net/https'
 require 'io/console'
-require 'sequel'
 require 'json'
-require 'colorize'
-require 'cgi'
 require 'debugger'
 
 ################################################################################################################################
 
 class CAESAR
-  attr_accessor :agent, :page, :username, :password
 
 	def initialize(username, password)
 		@agent = Mechanize.new
@@ -27,19 +21,19 @@ class CAESAR
 		#@agent.agent.http.ca_file = '/usr/local/Cellar/openssl/1.0.1c/cacert.pem'
 		@agent.agent.http.ca_file = 'cacert.pem'
 		@agent.agent.ssl_version = "SSLv3"
-		@page = @agent.get('https://ses.ent.northwestern.edu/psp/s9prod/?cmd=login')
+		@page = @agent.get('https://cas1.tcnj.edu/cas/login?method=POST&service=https://paws.tcnj.edu/psp/paws/?cmd=start')
 	end
 
 	def authenticate()
-		login_form = @page.form('login')
-		login_form.set_fields(:userid => @username) #ARGV[0]
-		login_form.set_fields(:pwd => @password) #ARGV[1]
-		login_form.action = 'https://ses.ent.northwestern.edu/psp/caesar/?cmd=?languageCd=ENG'
+		login_form = @page.form('fm1')
+		login_form.set_fields(:username => @username) #ARGV[0]
+		login_form.set_fields(:password => @password) #ARGV[1]
+		#login_form.action = 'https://ses.ent.northwestern.edu/psp/caesar/?cmd=?languageCd=ENG'
 		@page = @agent.submit(login_form, login_form.buttons.first)
 	end
 
 	def course_list()
-		@page = @agent.get('https://ses.ent.northwestern.edu/psc/caesar/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.SSR_SSENRL_LIST.GBL?ACAD_CAREER=UGRD&INSTITUTION=NWUNV&STRM=4480')
+		@page = @agent.get('https://paws.tcnj.edu/psc/paws/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.SSR_SSENRL_LIST.GBL?Page=SSR_SSENRL_LIST&Action=A&ACAD_CAREER=UGRD&AS_OF_DATE=2013-01-22&EMPLID=638989&INSTITUTION=TCNJ1&STRM=1134&TargetFrameName=None')
 		doc = @page.parser
 
 		numCourses = doc.xpath("//table[@id='ACE_STDNT_ENRL_SSV2$0']/tr/td[@valign='top']").size
@@ -184,48 +178,8 @@ class CAESAR
 
 	end
 
-	# DERIVED_CLSRCH_SSR_CLASSNAME_LONG$0
-	# MTG_DAYTIME$0
-	# MTG_ROOM$0
-	# MTG_INSTR$0
-	# MTG_TOPIC$0
-	# 
-	# MTG_DAYTIME$1
-	# MTG_ROOM$1
-	# MTG_INSTR$1
-	# MTG_TOPIC$1
-	# 
-	# DERIVED_CLSRCH_SSR_CLASSNAME_LONG$1
-	# MTG_DAYTIME$2
-
 	def scrape_courses()
-
-		datescraped = Time.now
-
-		db = Sequel.connect(:adapter => 'mysql2', :user => 'atul', :host => 'localhost', :database => 'caesar', :password=>'')
-    
-    db.create_table! :courses do
-      primary_key :id
-      String :uniqueid
-      String :dept
-      String :course
-      String :sec
-      String :title
-      String :days
-      String :start_time
-      String :end_time
-      String :room
-      String :instructor
-      String :seats
-      String :status
-      String :datescraped
-    end
-
-    course_list = db[:courses]
-
-    error_counter = 0 
-
-		#File.delete("database.txt") if File.exist?("database.txt")
+		File.delete("database.txt")
 		@@subjects.each { |key, value|
 
 			@page = @agent.get('https://ses.ent.northwestern.edu/psc/caesar_6/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES.CLASS_SEARCH.GBL?Page=SSR_CLSRCH_ENTRY')
@@ -263,79 +217,13 @@ class CAESAR
 
 			error = doc.search("span[id^='DERIVED_CLSMSG_ERROR_TEXT']/text()")
 			courses = doc.search("span[id^='DERIVED_CLSRCH_DESCR200$']/text()").to_a
+			courses.each_with_index { |x,i| courses[i] = courses[i].to_s }
 
-			partsCounter = 0
-
-      if (error.empty?)
-			  courses.each_with_index { |x,i| 
-          courses[i] = CGI.unescapeHTML(courses[i].to_s).delete!("^\u{0000}-\u{007F}")
-          courses[i] =~ /(^\w+)(\s+)(\d+-\d+) - (.*)/
-
-          department = $1
-          course = $3
-          title = $4
-					parts = doc.search("div[id='win6div$ICField108GP$" + i.to_s + "'] > table > tr > td[2] > span[3]/text()").to_s.gsub(/1.*of\s/, "").to_i
-
-          parts.times { |x|
-          	uniqueid_sec = doc.search("a[id='DERIVED_CLSRCH_SSR_CLASSNAME_LONG$" + partsCounter.to_s + "']").text
-          	uniqueid_sec =~ /(\w+)-\w+\((\d+)\)/
-          	sec = $1
-          	uniqueid = $2
-
-          	days_time = doc.search("span[id='MTG_DAYTIME$" + partsCounter.to_s + "']").text
-          	if (days_time != "TBA")
-	          	days_time =~ /^(\w+) (\d\d?:\d\d(AM|PM)) - (\d\d?:\d\d(AM|PM))/
-						 	days = $1
-						 	start_time = $2
-						 	end_time = $4
-						else
-							days = "TBA"
-							start_time = "TBA"
-							end_time = "TBA"
-						end
-
-          	room = doc.search("span[id='MTG_ROOM$" + partsCounter.to_s + "']").text
-          	instructor = doc.search("span[id='MTG_INSTR$" + partsCounter.to_s + "']").text
-          	dates = doc.search("span[id='MTG_TOPIC$" + partsCounter.to_s + "']").text
-          	seats = doc.search("span[id='NW_DERIVED_SS3_AVAILABLE_SEATS$" + partsCounter.to_s + "']").text
-          	status = doc.search("div[id='win6divDERIVED_CLSRCH_SSR_STATUS_LONG$" + partsCounter.to_s + "'] > div > img")[0]['alt']
-
-          	#puts status
-            
-            #debugger
-
-            # http://stackoverflow.com/questions/452859/inserting-multiple-rows-in-a-single-sql-query
-            course_list.insert(:uniqueid => uniqueid, :dept => department, :course => course, :sec => sec, :title => title, :days => days, :start_time => start_time, :end_time => end_time, :room => room, :instructor => instructor, :seats => seats, :status => status, :datescraped => datescraped)
-          	partsCounter+=1
-          }
-          
-        }
-      else
-      	error = error.to_s
-      	error = error.gsub("The search returns no results that match the criteria specified.", "No courses this quarter.")
-      	error = error.gsub("Your search will exceed the maximum limit of 200 sections.  Specify additional criteria to continue.", "Exceeds maximum limit.")
-        error_counter+=1
-        print "[" + error_counter.to_s + "] " + key + ": "
-        if (error.include? "No courses this quarter.")
-          puts error
-        elsif (error.include? "Exceeds maximum limit.")
-          puts error.yellow
-        else
-        	puts error.red
-        end
-      end
-	
-      #courses = CGI.unescapeHTML(courses.join("\n")) + "\n"
-			#File.open("database.txt", 'a') { |file| file.write( !error.empty? ? key + ": " + error.to_s + "\n" : courses ) }
- 
-      #puts "Completed #{key}"
+			File.open("database.txt", 'a') { |file| file.write( !error.empty? ? key + ": " + error.to_s + "\n" : courses.join("\n")) }
+			puts "Completed #{key}"
 
 		}
 
-	end
-
-	def backup_database()
-		exec '/usr/local/bin/mysqldump -u atul --databases caesar > caesar.sql'
 	end
 
 	def convert_days(days)
@@ -683,26 +571,24 @@ if __FILE__ == $0
 		password = STDIN.noecho(&:gets).chop;
 		puts ""
 	else
-		password = ARGV[1];
-	end
+		password = ARGV[1]; end
 
 	beginning = Time.now
 	caesar = CAESAR.new(username, password)
 	puts ""
 
-	#define_hashes()
-	#caesar.connect()
-	#connection_time = Time.now - beginning
-	#puts "Connection Took #{connection_time} seconds.\n"
+	define_hashes()
+	caesar.connect()
+	connection_time = Time.now - beginning
+	puts "Connection Took #{connection_time} seconds.\n"
 
-	#caesar.authenticate()
-	#authenticate_time = (Time.now - beginning) - connection_time
-	#puts "Authentication Took #{authenticate_time} seconds.\n\n"
+	caesar.authenticate()
+	authenticate_time = (Time.now - beginning) - connection_time
+	puts "Authentication Took #{authenticate_time} seconds.\n\n"
 
-	#puts caesar.course_list()
+	puts caesar.course_list()
 	#puts caesar.shopping_cart()
 	#puts caesar.course_history()
-	caesar.backup_database()
 	#caesar.scrape_courses()
 
 	puts "Total time elapsed: #{Time.now - beginning} seconds."
@@ -710,19 +596,3 @@ if __FILE__ == $0
 end
 
 ################################################################################################################
-
-
-
-
-          	# TuTh 11:00AM - 12:20PM
-          	# Leverone Auditorium Owen Coon
-          	# 
-
-          	# MTG_DAYTIME$0
-          	# MTG_ROOM$0
-          	# MTG_INSTR$0
-          	# MTG_TOPIC$0
-          	#
-          	# win5divDERIVED_CLSRCH_SSR_STATUS_LONG$1
-          	# 
-          	# NW_DERIVED_SS3_AVAILABLE_SEATS$2
