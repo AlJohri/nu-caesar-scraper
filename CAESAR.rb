@@ -24,8 +24,8 @@ class CAESAR
 	end
 
 	def connect()
-		#@agent.agent.http.ca_file = '/usr/local/Cellar/openssl/1.0.1c/cacert.pem'
-		@agent.agent.http.ca_file = 'cacert.pem'
+		@agent.agent.http.ca_file = '/usr/local/Cellar/openssl/1.0.1c/cacert.pem'
+		#@agent.agent.http.ca_file = 'cacert.pem'
 		@agent.agent.ssl_version = "SSLv3"
 		@page = @agent.get('https://ses.ent.northwestern.edu/psp/s9prod/?cmd=login')
 	end
@@ -101,6 +101,7 @@ class CAESAR
 	end
 
 	def shopping_cart()
+		debugger
 		@page = @agent.get('https://ses.ent.northwestern.edu/psc/caesar_5/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES_2.SSR_SSENRL_CART.GBL?Page=SSR_SSENRL_CART&Action=A&TargetFrameName=None')
 		#https://ses.ent.northwestern.edu/psc/caesar_5/EMPLOYEE/HRMS/c/SA_LEARNER_SERVICES_2.SSR_SSENRL_CART.GBL?Page=SSR_SSENRL_CART&Action=A&TargetFrameName=None&PortalActualURL=https%3a%2f%2fses.ent.northwestern.edu%2fpsc%2fcaesar_5%2fEMPLOYEE%2fHRMS%2fc%2fSA_LEARNER_SERVICES_2.SSR_SSENRL_CART.GBL%3fPage%3dSSR_SSENRL_CART%26Action%3dA%26EMPLID%3d2678688%26TargetFrameName%3dNone&PortalContentURL=https%3a%2f%2fses.ent.northwestern.edu%2fpsc%2fcaesar_5%2fEMPLOYEE%2fHRMS%2fc%2fSA_LEARNER_SERVICES_2.SSR_SSENRL_CART.GBL&PortalContentProvider=HRMS&PortalCRefLabel=Enrollment%20Shopping%20Cart&PortalRegistryName=EMPLOYEE&PortalServletURI=https%3a%2f%2fses.ent.northwestern.edu%2fpsp%2fcaesar_5%2f&PortalURI=https%3a%2f%2fses.ent.northwestern.edu%2fpsc%2fcaesar_5%2f&PortalHostNode=HRMS&NoCrumbs=yes&PortalKeyStruct=yes')
 		doc = @page.parser
@@ -202,7 +203,7 @@ class CAESAR
 
 		datescraped = Time.now
 
-		db = Sequel.connect(:adapter => 'mysql2', :user => 'atul', :host => 'localhost', :database => 'caesar', :password=>'')
+		db = Sequel.connect(:adapter => 'pg', :user => 'atul', :host => 'localhost', :database => 'caesar', :password=>'')
     
     db.create_table! :courses do
       primary_key :id
@@ -690,19 +691,19 @@ if __FILE__ == $0
 	caesar = CAESAR.new(username, password)
 	puts ""
 
-	#define_hashes()
-	#caesar.connect()
-	#connection_time = Time.now - beginning
-	#puts "Connection Took #{connection_time} seconds.\n"
+	define_hashes()
+	caesar.connect()
+	connection_time = Time.now - beginning
+	puts "Connection Took #{connection_time} seconds.\n"
 
-	#caesar.authenticate()
-	#authenticate_time = (Time.now - beginning) - connection_time
-	#puts "Authentication Took #{authenticate_time} seconds.\n\n"
+	caesar.authenticate()
+	authenticate_time = (Time.now - beginning) - connection_time
+	puts "Authentication Took #{authenticate_time} seconds.\n\n"
 
-	#puts caesar.course_list()
-	#puts caesar.shopping_cart()
-	#puts caesar.course_history()
-	caesar.backup_database()
+	puts caesar.course_list()
+	puts caesar.shopping_cart()
+	puts caesar.course_history()
+	#caesar.backup_database()
 	#caesar.scrape_courses()
 
 	puts "Total time elapsed: #{Time.now - beginning} seconds."
