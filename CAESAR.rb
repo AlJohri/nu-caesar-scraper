@@ -24,7 +24,7 @@ class CAESAR
 	end
 
 	def connect()
-		@agent.agent.http.ca_file = '/usr/local/Cellar/openssl/1.0.1c/cacert.pem'
+		#@agent.agent.http.ca_file = '/usr/local/Cellar/openssl/1.0.1c/cacert.pem'
 		#@agent.agent.http.ca_file = 'cacert.pem'
 		@agent.agent.ssl_version = "SSLv3"
 		@page = @agent.get('https://ses.ent.northwestern.edu/psp/s9prod/?cmd=login')

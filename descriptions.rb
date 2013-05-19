@@ -12,10 +12,11 @@ EXT1 = "/index.json"
 EXT2 = ".json"
 
 def scrape_descriptions
-	@agent = Mechanize.new
+	json = Array.new
+  @agent = Mechanize.new
 	terms = get_json("terms", "class-descriptions")
 	terms.each { |term| 
-		next if (term['id'].to_i < 4400)
+		next if (term['id'].to_i < 4490)
 		schools = get_json("schools", term['id'])
 		next if (schools.empty?)
 		schools.each { |school|
@@ -29,16 +30,27 @@ def scrape_descriptions
 					next if (sections.empty?)
 					sections.each { |section|
 						data = get_json("data", section['path'])
-						next if (data.empty?)
-						puts "#{section['id']} #{term['id']} #{school['id']} #{subject['abbv']} #{course['abbv']} #{section['name']}"
-						data['descriptions'].each { |description|
-							#puts "#{description['name']}: #{description['value']}"
+						next if (data.empty? or data['descriptions'].empty?)
+
+						hash = {
+							uniqueID: section['id'],
+							term: term['id'],
+							school: school['id'],
+							subject: subject['abbv'],
+							course: course['abbv'],
+							section: section['section'],
+              title: section['name'],
+							description: data['descriptions'][0]['value']
 						}
+            json.push hash.to_json
+            print "#{hash.to_json}\n\n"
+
 					}
 				}
 			}
 		}
 	}
+	File.open("description.json", 'w') { |file| file.write "[#{json}]"}
 end
 
 def get_json(type, *paths)
@@ -54,83 +66,24 @@ end
 
 scrape_descriptions
 
-
-
-
-
-
-
-
-
-
-
-
-
-# def parse_shit(shit)
-# 	shit = shit.gsub(/(var )?\w+\s?=\s?([\[\{])/, '\2').gsub(/\;\/\/<xml><\/xml>/, "").gsub(/\t/,"")
-# 	shit = shit.gsub(/([^:{[,]])"([\w'\s]+)"([" ])/, '\1\2\3 ')
-# 	return JSON.parse(shit)
-# end
-
-# def no_html(shit) ; return Nokogiri::HTML(shit).xpath("//text()").remove.to_s; end
-
-
-#JSON.parse (data.gsub("var data = ", "").gsub(/;\/\/<xml><\/xml>/, ""))
-
 =begin
 	
-	# shit = shit.gsub(/"Others"/, "Others") #Random special case 1
-	# shit = shit.gsub(/"Ion"/, "Ion")  #Random special case 2
-	# shit = shit.gsub(/"Blue House"/, "Blue House") #Random special case 3
-	#shit = shit.gsub(/"Weird"/, "Weird") #Random special case 4
-	# shit = shit.gsub(/"You Tube"/, "You Tube") #Random special case 5
-	# shit = shit.gsub(/"Islamic Jihad"/, "Islamic Jihad")
-	# shit = shit.gsub(/"Phaedo"/, "Phaedo")
-	# shit = shit.gsub(/"The"/, "The")
-	# shit = shit.gsub(/"Protagoras"/, "Protagoras")
-	# shit = shit.gsub(/"Murder Speeches"/, "Murder Speeches")
-	# shit = shit.gsub(/"Mad Men"/, "Mad Men")
-
-	#shit = shit.gsub(/[^:]"([\w\s]+)"[^:]/, ' \1 ')
-	#shit = shit.gsub(/[^:{,]"(\w+)"/, ' \1')
-	#shit = shit.gsub(/[^:{[,]]"([\w\s]+)""/, ' \1"') # Generic Special Case Regex
-	#shit = shit.gsub(/[^:{[,]]"([\w\s]+)"([" ])/, ' \1\2 ')
-	#shit = shit.gsub(/([^:{[,]])"([\w\s]+)"([" ])/, '\1\2\3 ')
-
-							overviewStr = "Overview of Class"
-							emptyStr = "Contact the department for further information"
-
-							# data['descriptions'].each { |description| 
-							# 	if (description['name'] == overviewStr and (description['value'] == emptyStr or description['value'] == ""))
-							# 		empty = true
-							# 	elsif (description['name'] == overviewStr)
-							# 		puts description
-							# 	end
-							# }
-
-								#filename = "#{section['id']} #{term['id']} #{school['id']} #{subject['abbv']} #{course['abbv']} #{section['name']}.txt"
-								#filename = no_html(filename.gsub(/\//,"-"))
-
-=end
+	# puts "#{section['id']} #{term['id']} #{school['id']} #{subject['abbv']} #{course['abbv']} #{section['name']}"
+	# data['descriptions'].each { |description|
+	# 	#puts "#{description['name']}: #{description['value']}"
+	# }
 
 
-=begin
+	#overviewStr = "Overview of Class"
+	#emptyStr = "Contact the department for further information"
 	
-page = agent.get(class_descriptions + term['id'] + "/index.json")
-schools = parse_shit(page)
-
-page = agent.get(class_descriptions + term['id'] + "/" + school['id'] + "/index.json")
-subjects = parse_shit(page)
-
-page = agent.get(base + subject['path'] + "/index.json")
-courses = parse_shit(page)
-
-page = agent.get(base + course['path'] + "/index.json")
-next if (page.body == "<xml/>")
-sections = parse_shit(page)
-
-page = agent.get(base + section['path'] + ".json")
-next if (page.body == "<xml/>")
-data = parse_shit(page)
+			# file.write("#{section['id']} #{term['id']} #{school['id']} #{subject['abbv']} #{course['abbv']} #{section['name']}\n")
+		# file.write("#{data['descriptions'][0]['value']}")
+		# data['descriptions'].each { |description| 
+		# 	#if !(description['name'] == overviewStr and (description['value'] == emptyStr or description['value'] == ""))
+		# 	file.write("#{description['name']}: #{description['value']}\n")
+		# 	#end
+		# }
+		# puts "#{section['id']} #{term['id']} #{school['id']} #{subject['abbv']} #{course['abbv']} #{section['name']}"	
 
 =end
